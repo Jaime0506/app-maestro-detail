@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { useToast } from '../contexts/ToastContext';
-import { useProductoForm } from '../hooks/useProductoForm';
+import { useToast } from '../../contexts/ToastContext';
+import { useClienteForm } from '../../hooks/useClienteForm';
 
-interface ProductosModalProps {
+interface ClientesModalProps {
     visible: boolean;
     onClose: () => void;
 }
 
-export default function ProductosModal({ visible, onClose }: ProductosModalProps) {
+export default function ClientesModal({ visible, onClose }: ClientesModalProps) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.3)).current;
     const [isLoading, setIsLoading] = useState(false);
@@ -19,20 +19,9 @@ export default function ProductosModal({ visible, onClose }: ProductosModalProps
         errors,
         handleInputChange,
         handleCrear
-    } = useProductoForm();
+    } = useClienteForm();
 
     const { showSuccess, showError } = useToast();
-
-    const handlePriceChange = (value: string) => {
-        // Solo permitir números y un punto decimal
-        const cleanValue = value.replace(/[^0-9.]/g, '');
-
-        // Evitar múltiples puntos decimales
-        const parts = cleanValue.split('.');
-        const finalValue = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleanValue;
-
-        handleInputChange('precio', finalValue);
-    };
 
     useEffect(() => {
         if (visible) {
@@ -66,7 +55,7 @@ export default function ProductosModal({ visible, onClose }: ProductosModalProps
         }
     }, [visible, fadeAnim, scaleAnim]);
 
-    const handleCrearProducto = async () => {
+    const handleCrearCliente = async () => {
         if (isLoading) return;
 
         setIsLoading(true);
@@ -76,12 +65,12 @@ export default function ProductosModal({ visible, onClose }: ProductosModalProps
                 onClose();
                 // Mostrar toast después de un pequeño delay
                 setTimeout(() => {
-                    showSuccess('Producto creado correctamente');
+                    showSuccess('Cliente creado correctamente');
                 }, 300);
             });
         } catch (error) {
-            console.error('Error al crear producto:', error);
-            showError('No se pudo crear el producto');
+            console.error('Error al crear cliente:', error);
+            showError('No se pudo crear el cliente');
         } finally {
             setIsLoading(false);
         }
@@ -99,7 +88,7 @@ export default function ProductosModal({ visible, onClose }: ProductosModalProps
                     <TouchableWithoutFeedback onPress={() => { }}>
                         <Animated.View style={[styles.modalContainer, { transform: [{ scale: scaleAnim }] }]}>
                             <View style={styles.header}>
-                                <Text style={styles.title}>Nuevo Producto</Text>
+                                <Text style={styles.title}>Nuevo Cliente</Text>
                                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                                     <Ionicons name="close" size={24} color="#666" />
                                 </TouchableOpacity>
@@ -113,59 +102,41 @@ export default function ProductosModal({ visible, onClose }: ProductosModalProps
                                             style={[styles.input, errors.nombre && styles.inputError]}
                                             value={formData.nombre}
                                             onChangeText={(value) => handleInputChange('nombre', value)}
-                                            placeholder="Nombre del producto"
+                                            placeholder="Nombre del cliente"
                                             placeholderTextColor="#999"
                                         />
                                         {errors.nombre && <Text style={styles.errorText}>{errors.nombre}</Text>}
                                     </View>
 
                                     <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>Descripción</Text>
+                                        <Text style={styles.label}>Dirección</Text>
                                         <TextInput
                                             style={[styles.input, styles.textArea]}
-                                            value={formData.descripcion}
-                                            onChangeText={(value) => handleInputChange('descripcion', value)}
-                                            placeholder="Descripción del producto (opcional)"
+                                            value={formData.direccion}
+                                            onChangeText={(value) => handleInputChange('direccion', value)}
+                                            placeholder="Dirección del cliente (opcional)"
                                             placeholderTextColor="#999"
                                             multiline
                                             numberOfLines={3}
                                         />
                                     </View>
 
-                                    <View style={styles.row}>
-                                        <View style={[styles.inputGroup, styles.halfWidth]}>
-                                            <Text style={styles.label}>Precio *</Text>
-                                            <View style={styles.priceInputContainer}>
-                                                <Text style={styles.dollarSign}>$</Text>
-                                                <TextInput
-                                                    style={[styles.input, styles.priceInput, errors.precio && styles.inputError]}
-                                                    value={formData.precio}
-                                                    onChangeText={handlePriceChange}
-                                                    placeholder="0.00"
-                                                    placeholderTextColor="#999"
-                                                    keyboardType="numeric"
-                                                />
-                                            </View>
-                                            {errors.precio && <Text style={styles.errorText}>{errors.precio}</Text>}
-                                        </View>
-
-                                        <View style={[styles.inputGroup, styles.halfWidth]}>
-                                            <Text style={styles.label}>Cantidad *</Text>
-                                            <TextInput
-                                                style={[styles.input, errors.cantidad && styles.inputError]}
-                                                value={formData.cantidad}
-                                                onChangeText={(value) => handleInputChange('cantidad', value)}
-                                                placeholder="0"
-                                                placeholderTextColor="#999"
-                                                keyboardType="numeric"
-                                            />
-                                            {errors.cantidad && <Text style={styles.errorText}>{errors.cantidad}</Text>}
-                                        </View>
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Teléfono</Text>
+                                        <TextInput
+                                            style={[styles.input, errors.telefono && styles.inputError]}
+                                            value={formData.telefono}
+                                            onChangeText={(value) => handleInputChange('telefono', value)}
+                                            placeholder="Teléfono del cliente (opcional)"
+                                            placeholderTextColor="#999"
+                                            keyboardType="phone-pad"
+                                        />
+                                        {errors.telefono && <Text style={styles.errorText}>{errors.telefono}</Text>}
                                     </View>
 
                                     <TouchableOpacity
                                         style={[styles.createButton, isLoading && styles.createButtonDisabled]}
-                                        onPress={handleCrearProducto}
+                                        onPress={handleCrearCliente}
                                         disabled={isLoading}
                                     >
                                         {isLoading ? (
@@ -174,7 +145,7 @@ export default function ProductosModal({ visible, onClose }: ProductosModalProps
                                                 <Text style={styles.createButtonText}>Creando...</Text>
                                             </View>
                                         ) : (
-                                            <Text style={styles.createButtonText}>Crear Producto</Text>
+                                            <Text style={styles.createButtonText}>Crear Cliente</Text>
                                         )}
                                     </TouchableOpacity>
                                 </View>
@@ -183,7 +154,6 @@ export default function ProductosModal({ visible, onClose }: ProductosModalProps
                     </TouchableWithoutFeedback>
                 </Animated.View>
             </TouchableWithoutFeedback>
-
         </Modal>
     );
 }
@@ -220,12 +190,6 @@ const styles = StyleSheet.create({
     content: {
         alignItems: 'center',
     },
-    subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 20,
-        textAlign: 'center',
-    },
     form: {
         width: '100%',
     },
@@ -251,13 +215,6 @@ const styles = StyleSheet.create({
         height: 80,
         textAlignVertical: 'top',
     },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    halfWidth: {
-        width: '48%',
-    },
     createButton: {
         backgroundColor: '#007AFF',
         borderRadius: 8,
@@ -279,27 +236,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginTop: 4,
         marginLeft: 4,
-    },
-    priceInputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E5E5EA',
-        borderRadius: 8,
-        backgroundColor: '#FAFAFA',
-    },
-    dollarSign: {
-        fontSize: 16,
-        color: '#333',
-        paddingLeft: 12,
-        paddingRight: 4,
-        fontWeight: '600',
-    },
-    priceInput: {
-        flex: 1,
-        borderWidth: 0,
-        backgroundColor: 'transparent',
-        paddingLeft: 0,
     },
     createButtonDisabled: {
         backgroundColor: '#A0A0A0',

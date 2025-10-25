@@ -1,13 +1,11 @@
 import React from 'react';
-import { StatusBar, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 import { ProductList } from '../components/products/ProductList';
 import { useToast } from '../contexts/ToastContext';
 import { Producto } from '../lib/firebase/productos';
 
 export default function ProductsView() {
     const { showInfo } = useToast();
-    const insets = useSafeAreaInsets();
 
     const handleProductPress = (product: Producto) => {
         // Here you can implement navigation to product details
@@ -21,10 +19,6 @@ export default function ProductsView() {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-            <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-                <Text style={styles.title}>Productos</Text>
-            </View>
             <ProductList
                 onProductPress={handleProductPress}
                 onProductEdit={handleProductEdit}

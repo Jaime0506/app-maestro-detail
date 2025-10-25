@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { crearProducto } from "../lib/firebase/productos";
+import { createProduct } from "../lib/firebase/productos";
 
 interface FormData {
     nombre: string;
@@ -87,7 +87,7 @@ export const useProductoForm = () => {
             };
 
             // Crear el producto en Firebase
-            const productoId = await crearProducto(productoData);
+            const productoId = await createProduct(productoData);
             console.log("Producto creado en Firebase con ID:", productoId);
 
             resetForm();

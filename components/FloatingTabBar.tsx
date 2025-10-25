@@ -3,10 +3,10 @@ import { Tabs, useSegments } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { ToastProvider, useToast } from "../contexts/ToastContext";
-import ClientesModal from "./ClientesModal";
+import ClientesModal from "./clients/ClientesModal";
 import FacturasModal from "./FacturasModal";
 import InfoModal from "./InfoModal";
-import ProductosModal from "./ProductosModal";
+import ProductosModal from "./products/ProductosModal";
 import Toast from "./Toast";
 
 function FloatingTabBarContent() {
@@ -58,7 +58,7 @@ function FloatingTabBarContent() {
                         height: 110,
                         paddingTop: 10,
                     },
-                    headerShown: false,
+                    headerShown: true,
                 }}
             >
                 <Tabs.Screen

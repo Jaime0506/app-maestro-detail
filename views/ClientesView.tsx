@@ -1,10 +1,29 @@
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { ClientsList } from '../components/clients/ClientsList';
+import { useToast } from '../contexts/ToastContext';
+import { Cliente } from '../lib/firebase/clients';
 
-export default function Clientes() {
+export default function ClientesView() {
+    const { showInfo } = useToast();
+
+    const handleClientPress = (client: Cliente) => {
+        // Here you can implement navigation to client details
+        showInfo(`Has seleccionado: ${client.nombre}`);
+    };
+
+    const handleClientEdit = (client: Cliente) => {
+        // Here you can implement navigation to edit modal
+        showInfo(`Editando: ${client.nombre}`);
+    };
+
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Clientes</Text>
-            <Text style={styles.subtitle}>Gestiona tu lista de clientes</Text>
+            <ClientsList
+                onClientPress={handleClientPress}
+                onClientEdit={handleClientEdit}
+                showActions={true}
+            />
         </View>
     );
 }
@@ -12,9 +31,14 @@ export default function Clientes() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
         backgroundColor: '#f5f5f5',
+    },
+    header: {
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
     },
     title: {
         fontSize: 24,
