@@ -4,7 +4,7 @@ import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { ToastProvider, useToast } from "../contexts/ToastContext";
 import ClientesModal from "./clients/ClientesModal";
-import FacturasModal from "./FacturasModal";
+import FacturasModal from "./factura/FacturasModal";
 import InfoModal from "./InfoModal";
 import ProductosModal from "./products/ProductosModal";
 import Toast from "./Toast";

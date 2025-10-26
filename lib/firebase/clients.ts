@@ -8,7 +8,6 @@ import {
     query,
     Timestamp,
     updateDoc,
-    where,
 } from "firebase/firestore";
 import { db } from "../../config/firebase";
 
@@ -77,22 +76,27 @@ export const getClients = async (): Promise<Cliente[]> => {
     }
 };
 
-// Get active clients
+// Get active clients (simplified to avoid index issues)
 export const getActiveClients = async (): Promise<Cliente[]> => {
     try {
+        // Use simple query and filter client-side to avoid index requirements
         const q = query(
             collection(db, "clientes"),
-            where("status", "==", "activo"),
             orderBy("created_at", "desc")
         );
         const querySnapshot = await getDocs(q);
 
         const clients: Cliente[] = [];
         querySnapshot.forEach((doc) => {
-            clients.push({
+            const client = {
                 id: doc.id,
                 ...doc.data(),
-            } as Cliente);
+            } as Cliente;
+
+            // Filter by status client-side
+            if (client.status === "activo") {
+                clients.push(client);
+            }
         });
 
         return clients;
