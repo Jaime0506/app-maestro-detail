@@ -61,21 +61,46 @@ export default function FacturasModal({ visible, onClose }: FacturasModalProps) 
     }, [showError]);
 
     const handleCrearFactura = async () => {
-        if (isLoading) return;
+        console.log('🔴 handleCrearFactura llamado!', { isLoading, itemsLength: formData.items.length, clienteId: formData.clienteId });
 
+        if (isLoading) {
+            console.log('🔴 Ya está cargando, ignorando...');
+            return;
+        }
+
+        console.log('🔴 Iniciando proceso de creación de factura...');
         setIsLoading(true);
         try {
             await handleCrear(() => {
+                console.log('✅ Factura creada exitosamente');
                 // Cerrar el modal primero
                 onClose();
                 // Mostrar toast después de un pequeño delay
                 setTimeout(() => {
-                    showSuccess('Factura creada correctamente');
+                    showSuccess('¡Factura creada correctamente!');
                 }, 300);
             });
         } catch (error) {
-            console.error('Error al crear factura:', error);
-            showError('No se pudo crear la factura');
+            console.error('❌ Error al crear factura:', error);
+
+            // Mostrar mensaje de error específico
+            let errorMessage = 'No se pudo crear la factura';
+
+            if (error instanceof Error) {
+                if (error.message.includes('Stock insuficiente')) {
+                    errorMessage = 'Stock insuficiente para algunos productos';
+                } else if (error.message.includes('Debe seleccionar')) {
+                    errorMessage = 'Debe seleccionar un cliente';
+                } else if (error.message.includes('Debe agregar')) {
+                    errorMessage = 'Debe agregar al menos un producto';
+                } else if (error.message.includes('total calculado')) {
+                    errorMessage = 'Error en el cálculo del total';
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+
+            showError(errorMessage);
         } finally {
             setIsLoading(false);
         }
@@ -113,7 +138,7 @@ export default function FacturasModal({ visible, onClose }: FacturasModalProps) 
         onClose();
     };
 
-    // Crear datos para FlatList
+    // Crear datos para FlatList (incluyendo el botón)
     const renderContentData = [
         { type: 'client', id: 'client-section' },
         { type: 'products-header', id: 'products-header' },
@@ -193,23 +218,7 @@ export default function FacturasModal({ visible, onClose }: FacturasModalProps) 
                 return formData.items.length > 0 ? (
                     <TotalSection total={formData.total} />
                 ) : null;
-            case 'button':
-                return (
-                    <TouchableOpacity
-                        style={[styles.createButton, isLoading && styles.createButtonDisabled]}
-                        onPress={handleCrearFactura}
-                        disabled={isLoading || formData.items.length === 0 || !formData.clienteId}
-                    >
-                        {isLoading ? (
-                            <View style={styles.loadingContainer}>
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                                <Text style={styles.createButtonText}>Creando...</Text>
-                            </View>
-                        ) : (
-                            <Text style={styles.createButtonText}>Generar Venta</Text>
-                        )}
-                    </TouchableOpacity>
-                );
+
             default:
                 return null;
         }
@@ -238,7 +247,7 @@ export default function FacturasModal({ visible, onClose }: FacturasModalProps) 
                     </View>
 
                     <FlatList
-                        data={renderContentData}
+                        data={renderContentData.filter(item => item.type !== 'button')} // QUITAR EL BOTÓN
                         renderItem={renderContentItem}
                         keyExtractor={(item) => item.id}
                         style={styles.content}
@@ -247,15 +256,47 @@ export default function FacturasModal({ visible, onClose }: FacturasModalProps) 
                         bounces={true}
                         scrollEnabled={true}
                         keyboardShouldPersistTaps="handled"
-                        removeClippedSubviews={false}
-                        scrollEventThrottle={16}
-                        decelerationRate="normal"
-                        alwaysBounceVertical={false}
                     />
+
                 </View>
             </View>
 
-            {/* Modal de Selección de Cliente */}
+            {/* Botón súper simple sin estilos conflictivos */}
+            <View style={{ alignItems: 'center', backgroundColor: 'red', width: '100%', justifyContent: 'center' }}>
+                <TouchableOpacity
+                    style={{
+                        position: 'absolute',
+                        bottom: 80,
+                        left: '12.5%',
+                        backgroundColor: isLoading ? '#A0A0A0' : '#007AFF',
+                        padding: 14,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        width: '75%',
+                        opacity: isLoading ? 0.7 : 1,
+                    }}
+                    onPress={() => {
+                        console.log('🔴 BOTÓN SÚPER SIMPLE PRESIONADO!');
+                        handleCrearFactura();
+                    }}
+                    disabled={isLoading}
+                >
+                    {isLoading ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                            <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                                Procesando...
+                            </Text>
+                        </View>
+                    ) : (
+                        <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                            Generar Venta
+                        </Text>
+                    )}
+                </TouchableOpacity>
+            </View>
+
+            {/* Modales de selección */}
             <ClientSelector
                 visible={showClientSelector}
                 onClose={() => setShowClientSelector(false)}
@@ -264,7 +305,6 @@ export default function FacturasModal({ visible, onClose }: FacturasModalProps) 
                 loading={loadingData}
             />
 
-            {/* Modal de Selección de Producto */}
             <ProductSelector
                 visible={showProductSelector}
                 onClose={() => setShowProductSelector(false)}
@@ -282,7 +322,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        pointerEvents: 'box-none',
+        // QUITAR: pointerEvents: 'box-none',
     },
     modalContainer: {
         backgroundColor: 'white',
@@ -290,8 +330,7 @@ const styles = StyleSheet.create({
         width: '90%',
         maxWidth: 450,
         height: '85%',
-        overflow: 'visible',
-        pointerEvents: 'box-none',
+        overflow: 'hidden', // Cambiar de 'visible' a 'hidden'
     },
     header: {
         flexDirection: 'row',
@@ -302,6 +341,7 @@ const styles = StyleSheet.create({
         paddingBottom: 10,
         borderBottomWidth: 1,
         borderBottomColor: '#E5E5EA',
+        backgroundColor: 'white', // Asegurar fondo blanco
     },
     title: {
         fontSize: 20,
@@ -316,7 +356,34 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         padding: 20,
-        paddingBottom: 40,
+        paddingBottom: 20, // Reducir padding bottom
+    },
+    buttonContainer: {
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        backgroundColor: 'white',
+        borderTopWidth: 1,
+        borderTopColor: '#E5E5EA',
+        marginTop: 8,
+    },
+    floatingButtonContainer: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        zIndex: 1000,
+        backgroundColor: 'white',
+        borderRadius: 12,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
     },
     infoText: {
         fontSize: 16,
@@ -465,7 +532,7 @@ const styles = StyleSheet.create({
     createButton: {
         backgroundColor: '#007AFF',
         borderRadius: 8,
-        paddingVertical: 12,
+        paddingVertical: 14,
         alignItems: 'center',
         marginTop: 8,
     },
@@ -475,13 +542,14 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     createButtonDisabled: {
-        backgroundColor: '#A0A0A0',
-        opacity: 0.7,
+        backgroundColor: '#CCCCCC', // Cambiar color
+        opacity: 0.6,
     },
     loadingContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 8,
     },
     errorText: {
         color: '#FF3B30',

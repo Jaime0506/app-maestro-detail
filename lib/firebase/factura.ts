@@ -40,13 +40,102 @@ export interface CreateFacturaData {
     total: number;
 }
 
-// Create a new invoice
-export const createFactura = async (
-    facturaData: CreateFacturaData
+// Interfaces para la colección de movimientos
+export interface MovimientoItem {
+    productoId: string;
+    productoNombre: string;
+    cantidad: number;
+    precioUnitario: number;
+    subtotal: number;
+}
+
+export interface Movimiento {
+    id?: string;
+    tipo: "venta" | "compra" | "ajuste" | "devolucion";
+    facturaId?: string; // Referencia a la factura si aplica
+    clienteId?: string;
+    clienteNombre?: string;
+    items: MovimientoItem[];
+    total: number;
+    descripcion: string;
+    fecha: Timestamp;
+    created_at: Timestamp;
+    updated_at: Timestamp;
+}
+
+export interface CreateMovimientoData {
+    tipo: "venta" | "compra" | "ajuste" | "devolucion";
+    facturaId?: string;
+    clienteId?: string;
+    clienteNombre?: string;
+    items: MovimientoItem[];
+    total: number;
+    descripcion: string;
+}
+
+// Create a new movement record
+export const createMovimiento = async (
+    movimientoData: CreateMovimientoData
 ): Promise<string> => {
     try {
         const now = Timestamp.now();
 
+        const movimiento: Omit<Movimiento, "id"> = {
+            tipo: movimientoData.tipo,
+            facturaId: movimientoData.facturaId,
+            clienteId: movimientoData.clienteId,
+            clienteNombre: movimientoData.clienteNombre,
+            items: movimientoData.items,
+            total: movimientoData.total,
+            descripcion: movimientoData.descripcion,
+            fecha: now,
+            created_at: now,
+            updated_at: now,
+        };
+
+        const docRef = await addDoc(collection(db, "movimientos"), movimiento);
+        console.log("Movimiento creado con ID:", docRef.id);
+        return docRef.id;
+    } catch (error) {
+        console.error("Error creating movimiento:", error);
+        throw new Error("Could not create the movimiento");
+    }
+};
+
+// Create a new invoice with movement tracking
+export const createFactura = async (
+    facturaData: CreateFacturaData
+): Promise<{ facturaId: string; movimientoId: string }> => {
+    try {
+        const now = Timestamp.now();
+
+        // Validar que hay items en la factura
+        if (!facturaData.items || facturaData.items.length === 0) {
+            throw new Error("La factura debe tener al menos un producto");
+        }
+
+        // Validar que el total sea correcto
+        const calculatedTotal = facturaData.items.reduce(
+            (total, item) => total + item.subtotal,
+            0
+        );
+        if (Math.abs(calculatedTotal - facturaData.total) > 0.01) {
+            throw new Error(
+                "El total calculado no coincide con el total proporcionado"
+            );
+        }
+
+        // Validar stock antes de crear la factura
+        const stockValidation = await validateStockAvailability(
+            facturaData.items
+        );
+        if (!stockValidation.isValid) {
+            throw new Error(
+                `Stock insuficiente: ${stockValidation.errors.join(", ")}`
+            );
+        }
+
+        // Crear la factura en Firebase
         const factura: Omit<Factura, "id"> = {
             clienteId: facturaData.clienteId,
             clienteNombre: facturaData.clienteNombre,
@@ -58,9 +147,28 @@ export const createFactura = async (
             updated_at: now,
         };
 
-        // Crear la factura en Firebase
-        const docRef = await addDoc(collection(db, "facturas"), factura);
-        console.log("Factura creada con ID:", docRef.id);
+        const facturaDocRef = await addDoc(collection(db, "facturas"), factura);
+        console.log("Factura creada con ID:", facturaDocRef.id);
+
+        // Crear el registro de movimiento
+        const movimientoData: CreateMovimientoData = {
+            tipo: "venta",
+            facturaId: facturaDocRef.id,
+            clienteId: facturaData.clienteId,
+            clienteNombre: facturaData.clienteNombre,
+            items: facturaData.items.map((item) => ({
+                productoId: item.productoId,
+                productoNombre: item.productoNombre,
+                cantidad: item.cantidad,
+                precioUnitario: item.precioUnitario,
+                subtotal: item.subtotal,
+            })),
+            total: facturaData.total,
+            descripcion: `Venta a ${facturaData.clienteNombre} - Factura #${facturaDocRef.id}`,
+        };
+
+        const movimientoId = await createMovimiento(movimientoData);
+        console.log("Movimiento creado con ID:", movimientoId);
 
         // Descontar stock de productos
         for (const item of facturaData.items) {
@@ -93,6 +201,10 @@ export const createFactura = async (
                             `Stock insuficiente para ${item.productoNombre}. Disponible: ${stockActual}, Solicitado: ${item.cantidad}`
                         );
                     }
+                } else {
+                    throw new Error(
+                        `Producto ${item.productoNombre} no encontrado`
+                    );
                 }
             } catch (error) {
                 console.error(
@@ -103,10 +215,95 @@ export const createFactura = async (
             }
         }
 
-        return docRef.id;
+        return {
+            facturaId: facturaDocRef.id,
+            movimientoId: movimientoId,
+        };
     } catch (error) {
         console.error("Error creating factura:", error);
-        throw new Error("Could not create the factura");
+        throw new Error(
+            `Error al crear la factura: ${
+                error instanceof Error ? error.message : "Error desconocido"
+            }`
+        );
+    }
+};
+
+// Get all movements
+export const getMovimientos = async (): Promise<Movimiento[]> => {
+    try {
+        const q = query(
+            collection(db, "movimientos"),
+            orderBy("created_at", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+
+        const movimientos: Movimiento[] = [];
+        querySnapshot.forEach((doc) => {
+            movimientos.push({
+                id: doc.id,
+                ...doc.data(),
+            } as Movimiento);
+        });
+
+        return movimientos;
+    } catch (error) {
+        console.error("Error getting movimientos:", error);
+        throw new Error("Could not get movimientos");
+    }
+};
+
+// Get movements by type
+export const getMovimientosByType = async (
+    tipo: "venta" | "compra" | "ajuste" | "devolucion"
+): Promise<Movimiento[]> => {
+    try {
+        const q = query(
+            collection(db, "movimientos"),
+            where("tipo", "==", tipo),
+            orderBy("created_at", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+
+        const movimientos: Movimiento[] = [];
+        querySnapshot.forEach((doc) => {
+            movimientos.push({
+                id: doc.id,
+                ...doc.data(),
+            } as Movimiento);
+        });
+
+        return movimientos;
+    } catch (error) {
+        console.error("Error getting movimientos by type:", error);
+        throw new Error("Could not get movimientos by type");
+    }
+};
+
+// Get movements by client
+export const getMovimientosByClient = async (
+    clienteId: string
+): Promise<Movimiento[]> => {
+    try {
+        const q = query(
+            collection(db, "movimientos"),
+            where("clienteId", "==", clienteId),
+            orderBy("created_at", "desc")
+        );
+        const querySnapshot = await getDocs(q);
+
+        const movimientos: Movimiento[] = [];
+        querySnapshot.forEach((doc) => {
+            movimientos.push({
+                id: doc.id,
+                ...doc.data(),
+            } as Movimiento);
+        });
+
+        return movimientos;
+    } catch (error) {
+        console.error("Error getting movimientos by client:", error);
+        throw new Error("Could not get movimientos by client");
     }
 };
 

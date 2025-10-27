@@ -206,15 +206,16 @@ export const useFacturaForm = () => {
         }
 
         try {
-            // Crear la factura en Firebase
-            const facturaId = await createFactura({
+            // Crear la factura en Firebase con registro de movimiento
+            const result = await createFactura({
                 clienteId: formData.clienteId,
                 clienteNombre: formData.clienteNombre,
                 items: formData.items,
                 total: formData.total,
             });
 
-            console.log("Factura creada en Firebase con ID:", facturaId);
+            console.log("Factura creada en Firebase con ID:", result.facturaId);
+            console.log("Movimiento creado con ID:", result.movimientoId);
 
             resetForm();
             onSuccess?.();

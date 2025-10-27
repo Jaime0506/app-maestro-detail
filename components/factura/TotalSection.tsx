@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F0F8FF',
         borderRadius: 8,
         padding: 16,
-        marginBottom: 20,
+        marginBottom: 60,
     },
     totalLabel: {
         fontSize: 18,
