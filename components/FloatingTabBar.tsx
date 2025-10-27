@@ -5,7 +5,6 @@ import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { ToastProvider, useToast } from "../contexts/ToastContext";
 import ClientesModal from "./clients/ClientesModal";
 import FacturasModal from "./factura/FacturasModal";
-import InfoModal from "./InfoModal";
 import ProductosModal from "./products/ProductosModal";
 import Toast from "./Toast";
 
@@ -13,7 +12,6 @@ function FloatingTabBarContent() {
     const [clientesModalVisible, setClientesModalVisible] = useState(false);
     const [productosModalVisible, setProductosModalVisible] = useState(false);
     const [facturasModalVisible, setFacturasModalVisible] = useState(false);
-    const [infoModalVisible, setInfoModalVisible] = useState(false);
 
     const segments = useSegments();
     const currentRoute = segments[segments.length - 1] as string || 'index';
@@ -24,7 +22,6 @@ function FloatingTabBarContent() {
         setClientesModalVisible(false);
         setProductosModalVisible(false);
         setFacturasModalVisible(false);
-        setInfoModalVisible(false);
 
         // Abrir el modal correspondiente según la vista actual
         switch (currentRoute) {
@@ -38,8 +35,8 @@ function FloatingTabBarContent() {
             case 'facturas':
                 setFacturasModalVisible(true);
                 break;
-            case 'info':
-                setInfoModalVisible(true);
+            case 'Movimientos':
+                // Para movimientos no hay modal de creación, solo visualización
                 break;
             default:
                 setClientesModalVisible(true);
@@ -124,11 +121,11 @@ function FloatingTabBarContent() {
                     }}
                 />
                 <Tabs.Screen
-                    name="info"
+                    name="Movimientos"
                     options={{
-                        title: "Info",
+                        title: "Movimientos",
                         tabBarIcon: ({ color, size }) => (
-                            <Ionicons name="information-circle" size={size} color={color} />
+                            <Ionicons name="swap-horizontal" size={size} color={color} />
                         ),
                     }}
                 />
@@ -146,10 +143,6 @@ function FloatingTabBarContent() {
             <FacturasModal
                 visible={facturasModalVisible}
                 onClose={() => setFacturasModalVisible(false)}
-            />
-            <InfoModal
-                visible={infoModalVisible}
-                onClose={() => setInfoModalVisible(false)}
             />
 
             <Toast

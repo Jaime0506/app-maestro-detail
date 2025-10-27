@@ -11,107 +11,62 @@ import {
 } from 'react-native';
 import { useToast } from '../../contexts/ToastContext';
 import {
-    Factura,
-    getFacturas,
-    getFacturasWithFilters,
-    updateFacturaStatus
+    Movimiento,
+    getMovimientos,
+    getMovimientosByClient,
+    getMovimientosByType
 } from '../../lib/firebase/factura';
 
-interface FacturaListProps {
-    onFacturaPress?: (factura: Factura) => void;
+interface MovimientosListProps {
+    onMovimientoPress?: (movimiento: Movimiento) => void;
     showActions?: boolean;
 }
 
-export const FacturaList: React.FC<FacturaListProps> = ({
-    onFacturaPress,
+export const MovimientosList: React.FC<MovimientosListProps> = ({
+    onMovimientoPress,
     showActions = true,
 }) => {
     const { showError, showSuccess } = useToast();
-    const [facturas, setFacturas] = useState<Factura[]>([]);
+    const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [searchText, setSearchText] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'todos' | 'pendiente' | 'pagada' | 'cancelada'>('todos');
+    const [typeFilter, setTypeFilter] = useState<'todos' | 'venta' | 'compra' | 'ajuste' | 'devolucion'>('todos');
 
-    // Estados para cambios de estado
-    const [changingStatus, setChangingStatus] = useState<string | null>(null);
-
-    const loadFacturas = useCallback(async () => {
+    const loadMovimientos = useCallback(async () => {
         try {
             setLoading(true);
-            let facturasData: Factura[];
+            let movimientosData: Movimiento[];
 
             if (searchText.trim()) {
-                // Si hay texto de búsqueda, usar filtros combinados
-                facturasData = await getFacturasWithFilters({
-                    clienteId: searchText.trim(),
-                    status: statusFilter === 'todos' ? undefined : statusFilter,
-                });
+                // Si hay texto de búsqueda, buscar por cliente
+                movimientosData = await getMovimientosByClient(searchText.trim());
             } else {
-                // Si no hay texto de búsqueda, usar filtro de estado
-                if (statusFilter === 'todos') {
-                    facturasData = await getFacturas();
+                // Si no hay texto de búsqueda, usar filtro de tipo
+                if (typeFilter === 'todos') {
+                    movimientosData = await getMovimientos();
                 } else {
-                    facturasData = await getFacturasWithFilters({
-                        status: statusFilter,
-                    });
+                    movimientosData = await getMovimientosByType(typeFilter);
                 }
             }
 
-            setFacturas(facturasData);
+            setMovimientos(movimientosData);
         } catch {
-            showError('No se pudieron cargar las facturas');
+            showError('No se pudieron cargar los movimientos');
         } finally {
             setLoading(false);
         }
-    }, [searchText, statusFilter, showError]);
+    }, [searchText, typeFilter, showError]);
 
     const handleRefresh = async () => {
         setRefreshing(true);
-        await loadFacturas();
+        await loadMovimientos();
         setRefreshing(false);
     };
 
-    const handleStatusChange = async (factura: Factura) => {
-        try {
-            let newStatus: "pendiente" | "pagada" | "cancelada";
-
-            // Ciclo de estados: pendiente -> pagada -> cancelada -> pendiente
-            if (factura.status === 'pendiente') {
-                newStatus = 'pagada';
-            } else if (factura.status === 'pagada') {
-                newStatus = 'cancelada';
-            } else {
-                newStatus = 'pendiente';
-            }
-
-            // Activar loading
-            setChangingStatus(factura.id!);
-
-            await updateFacturaStatus(factura.id!, newStatus);
-
-            // Actualizar estado local
-            setFacturas(prevFacturas =>
-                prevFacturas.map(f =>
-                    f.id === factura.id ? { ...f, status: newStatus } : f
-                )
-            );
-
-            showSuccess(
-                `Factura ${newStatus === 'pagada' ? 'marcada como pagada' :
-                    newStatus === 'cancelada' ? 'cancelada' : 'marcada como pendiente'} correctamente`
-            );
-        } catch {
-            showError('No se pudo cambiar el estado de la factura');
-        } finally {
-            // Desactivar loading
-            setChangingStatus(null);
-        }
-    };
-
     useEffect(() => {
-        loadFacturas();
-    }, [loadFacturas]);
+        loadMovimientos();
+    }, [loadMovimientos]);
 
     const formatDate = (timestamp: any) => {
         if (!timestamp) return 'Sin fecha';
@@ -130,93 +85,92 @@ export const FacturaList: React.FC<FacturaListProps> = ({
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'pendiente':
-                return '#FF9800';
-            case 'pagada':
+    const getTypeColor = (tipo: string) => {
+        switch (tipo) {
+            case 'venta':
                 return '#4CAF50';
-            case 'cancelada':
+            case 'compra':
+                return '#2196F3';
+            case 'ajuste':
+                return '#FF9800';
+            case 'devolucion':
                 return '#f44336';
             default:
                 return '#666';
         }
     };
 
-    const getStatusText = (status: string) => {
-        switch (status) {
-            case 'pendiente':
-                return 'Pendiente';
-            case 'pagada':
-                return 'Pagada';
-            case 'cancelada':
-                return 'Cancelada';
+    const getTypeText = (tipo: string) => {
+        switch (tipo) {
+            case 'venta':
+                return 'Venta';
+            case 'compra':
+                return 'Compra';
+            case 'ajuste':
+                return 'Ajuste';
+            case 'devolucion':
+                return 'Devolución';
             default:
-                return status;
+                return tipo;
         }
     };
 
-    const renderFactura = ({ item }: { item: Factura }) => {
-        const isChangingStatus = changingStatus === item.id;
+    const getTypeIcon = (tipo: string) => {
+        switch (tipo) {
+            case 'venta':
+                return '📈';
+            case 'compra':
+                return '📥';
+            case 'ajuste':
+                return '⚖️';
+            case 'devolucion':
+                return '↩️';
+            default:
+                return '📋';
+        }
+    };
 
+    const renderMovimiento = ({ item }: { item: Movimiento }) => {
         return (
             <TouchableOpacity
-                style={styles.facturaCard}
-                onPress={() => onFacturaPress?.(item)}
-                disabled={!onFacturaPress}
+                style={styles.movimientoCard}
+                onPress={() => onMovimientoPress?.(item)}
+                disabled={!onMovimientoPress}
             >
-                <View style={styles.facturaHeader}>
-                    <View style={styles.facturaInfo}>
-                        <Text style={styles.clienteNombre}>{item.clienteNombre}</Text>
-                        <Text style={styles.facturaFecha}>{formatDate(item.fecha)}</Text>
+                <View style={styles.movimientoHeader}>
+                    <View style={styles.movimientoInfo}>
+                        <Text style={styles.movimientoTipo}>
+                            {getTypeIcon(item.tipo)} {getTypeText(item.tipo)}
+                        </Text>
+                        <Text style={styles.movimientoFecha}>{formatDate(item.fecha)}</Text>
                     </View>
                     <View style={[
-                        styles.statusBadge,
-                        { backgroundColor: getStatusColor(item.status) }
+                        styles.typeBadge,
+                        { backgroundColor: getTypeColor(item.tipo) }
                     ]}>
-                        <Text style={styles.statusText}>
-                            {getStatusText(item.status)}
+                        <Text style={styles.typeText}>
+                            {getTypeText(item.tipo)}
                         </Text>
                     </View>
                 </View>
 
-                <View style={styles.facturaDetails}>
+                <View style={styles.movimientoDetails}>
+                    <Text style={styles.clienteNombre}>
+                        {item.clienteNombre || 'Sin cliente'}
+                    </Text>
                     <Text style={styles.itemsCount}>
                         {item.items.length} producto{item.items.length !== 1 ? 's' : ''}
+                    </Text>
+                </View>
+
+                <View style={styles.movimientoFooter}>
+                    <Text style={styles.descripcion} numberOfLines={2}>
+                        {item.descripcion}
                     </Text>
                     <Text style={styles.totalAmount}>
                         ${item.total.toFixed(2)}
                     </Text>
                 </View>
-
-                {showActions && (
-                    <View style={styles.actionsContainer}>
-                        <TouchableOpacity
-                            style={[
-                                styles.actionButton,
-                                styles.statusButton,
-                                { backgroundColor: getStatusColor(item.status) },
-                                isChangingStatus && styles.disabledButton
-                            ]}
-                            onPress={() => handleStatusChange(item)}
-                            disabled={isChangingStatus}
-                        >
-                            {isChangingStatus ? (
-                                <View style={styles.buttonLoadingContainer}>
-                                    <ActivityIndicator size="small" color="#fff" />
-                                    <Text style={[styles.actionButtonText, styles.buttonLoadingText]}>
-                                        Cambiando...
-                                    </Text>
-                                </View>
-                            ) : (
-                                <Text style={styles.actionButtonText}>
-                                    {item.status === 'pendiente' ? 'Marcar Pagada' :
-                                        item.status === 'pagada' ? 'Cancelar' : 'Reactivar'}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-                )}
             </TouchableOpacity>
         );
     };
@@ -224,9 +178,9 @@ export const FacturaList: React.FC<FacturaListProps> = ({
     const renderEmptyState = () => (
         <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
-                {searchText.trim() || statusFilter !== 'todos'
-                    ? 'No se encontraron facturas con los filtros aplicados'
-                    : 'No hay facturas registradas'
+                {searchText.trim() || typeFilter !== 'todos'
+                    ? 'No se encontraron movimientos con los filtros aplicados'
+                    : 'No hay movimientos registrados'
                 }
             </Text>
         </View>
@@ -245,18 +199,18 @@ export const FacturaList: React.FC<FacturaListProps> = ({
                 />
             </View>
 
-            {/* Filtros de estado */}
-            <View style={styles.filterContainer}>
+            {/* Filtros de tipo */}
+            {/* <View style={styles.filterContainer}>
                 <TouchableOpacity
                     style={[
                         styles.filterButton,
-                        statusFilter === 'todos' && styles.filterButtonActive
+                        typeFilter === 'todos' && styles.filterButtonActive
                     ]}
-                    onPress={() => setStatusFilter('todos')}
+                    onPress={() => setTypeFilter('todos')}
                 >
                     <Text style={[
                         styles.filterButtonText,
-                        statusFilter === 'todos' && styles.filterButtonTextActive
+                        typeFilter === 'todos' && styles.filterButtonTextActive
                     ]}>
                         Todos
                     </Text>
@@ -265,59 +219,74 @@ export const FacturaList: React.FC<FacturaListProps> = ({
                 <TouchableOpacity
                     style={[
                         styles.filterButton,
-                        statusFilter === 'pendiente' && styles.filterButtonActive
+                        typeFilter === 'venta' && styles.filterButtonActive
                     ]}
-                    onPress={() => setStatusFilter('pendiente')}
+                    onPress={() => setTypeFilter('venta')}
                 >
                     <Text style={[
                         styles.filterButtonText,
-                        statusFilter === 'pendiente' && styles.filterButtonTextActive
+                        typeFilter === 'venta' && styles.filterButtonTextActive
                     ]}>
-                        Pendientes
+                        Ventas
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={[
                         styles.filterButton,
-                        statusFilter === 'pagada' && styles.filterButtonActive
+                        typeFilter === 'compra' && styles.filterButtonActive
                     ]}
-                    onPress={() => setStatusFilter('pagada')}
+                    onPress={() => setTypeFilter('compra')}
                 >
                     <Text style={[
                         styles.filterButtonText,
-                        statusFilter === 'pagada' && styles.filterButtonTextActive
+                        typeFilter === 'compra' && styles.filterButtonTextActive
                     ]}>
-                        Pagadas
+                        Compras
                     </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                     style={[
                         styles.filterButton,
-                        statusFilter === 'cancelada' && styles.filterButtonActive
+                        typeFilter === 'ajuste' && styles.filterButtonActive
                     ]}
-                    onPress={() => setStatusFilter('cancelada')}
+                    onPress={() => setTypeFilter('ajuste')}
                 >
                     <Text style={[
                         styles.filterButtonText,
-                        statusFilter === 'cancelada' && styles.filterButtonTextActive
+                        typeFilter === 'ajuste' && styles.filterButtonTextActive
                     ]}>
-                        Canceladas
+                        Ajustes
                     </Text>
                 </TouchableOpacity>
-            </View>
+
+                <TouchableOpacity
+                    style={[
+                        styles.filterButton,
+                        typeFilter === 'devolucion' && styles.filterButtonActive
+                    ]}
+                    onPress={() => setTypeFilter('devolucion')}
+                >
+                    <Text style={[
+                        styles.filterButtonText,
+                        typeFilter === 'devolucion' && styles.filterButtonTextActive
+                    ]}>
+                        Devoluciones
+                    </Text>
+                </TouchableOpacity>
+            </View> */}
 
             {/* Contenido principal */}
             {loading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#007AFF" />
-                    <Text style={styles.loadingText}>Cargando facturas...</Text>
+                    <Text style={styles.loadingText}>Cargando movimientos...</Text>
                 </View>
             ) : (
                 <FlatList
-                    data={facturas}
-                    renderItem={renderFactura}
+                    data={movimientos}
+                    renderItem={renderMovimiento}
                     keyExtractor={(item) => item.id!}
                     contentContainerStyle={styles.listContainer}
                     showsVerticalScrollIndicator={false}
@@ -367,7 +336,7 @@ const styles = StyleSheet.create({
     filterButton: {
         flex: 1,
         paddingVertical: 8,
-        paddingHorizontal: 8,
+        paddingHorizontal: 6,
         marginHorizontal: 2,
         borderRadius: 6,
         backgroundColor: '#f0f0f0',
@@ -377,7 +346,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#007AFF',
     },
     filterButtonText: {
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '500',
         color: '#666',
     },
@@ -387,7 +356,7 @@ const styles = StyleSheet.create({
     listContainer: {
         padding: 16,
     },
-    facturaCard: {
+    movimientoCard: {
         backgroundColor: '#fff',
         borderRadius: 12,
         padding: 16,
@@ -401,69 +370,68 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
         elevation: 5,
     },
-    facturaHeader: {
+    movimientoHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         marginBottom: 12,
     },
-    facturaInfo: {
+    movimientoInfo: {
         flex: 1,
         marginRight: 8,
     },
-    clienteNombre: {
+    movimientoTipo: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#333',
         marginBottom: 4,
     },
-    facturaFecha: {
+    movimientoFecha: {
         fontSize: 14,
         color: '#666',
     },
-    statusBadge: {
+    typeBadge: {
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
     },
-    statusText: {
+    typeText: {
         color: '#fff',
         fontSize: 12,
         fontWeight: 'bold',
     },
-    facturaDetails: {
+    movimientoDetails: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 12,
     },
+    clienteNombre: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#333',
+        flex: 1,
+        marginRight: 8,
+    },
     itemsCount: {
         fontSize: 14,
         color: '#666',
+    },
+    movimientoFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    descripcion: {
+        fontSize: 14,
+        color: '#666',
+        flex: 1,
+        marginRight: 12,
     },
     totalAmount: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#007AFF',
-    },
-    actionsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-    },
-    actionButton: {
-        flex: 1,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 8,
-        alignItems: 'center',
-    },
-    statusButton: {
-        backgroundColor: '#007AFF',
-    },
-    actionButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: 'bold',
     },
     loadingContainer: {
         flex: 1,
@@ -489,17 +457,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
     },
-    disabledButton: {
-        opacity: 0.6,
-    },
-    buttonLoadingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    buttonLoadingText: {
-        marginLeft: 8,
-    },
 });
 
-export default FacturaList;
+export default MovimientosList;
